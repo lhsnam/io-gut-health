@@ -1,0 +1,14 @@
+# Ignore Nextflow-related files
+.nextflow*
+
+# Ignore work directory
+work/*
+
+# Ignore gmwi2_results directory
+gmwi2_results/
+
+# Ignore design.csv
+*.csv
+
+# Ignore local config file
+conf/local.config
