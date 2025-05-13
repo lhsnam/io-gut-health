@@ -22,6 +22,8 @@ process DATABASE_PREPARATION {
     echo "Syncing mpa_v30_CHOCOPhlAn_201901 database ..."
     cp -r ${params.metaphlan_db}* "\$DB_DIR"
     
+    echo "Finished syncing mpa_v30_CHOCOPhlAn_201901 database."
+
     set -euo pipefail
 
     MD5_FILE=`sh -c "find \$CONDA_PREFIX -type f -name GRCh38_md5sum.txt | head -n1"`
@@ -34,5 +36,7 @@ process DATABASE_PREPARATION {
 
     echo "Syncing human genome folder to the location of MD5 file..."
     cp -r ${params.human_genome} "\$DB_DIR"
+
+    echo "Finished syncing human genome."
     """
 }
