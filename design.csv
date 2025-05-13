@@ -1,4 +1,0 @@
-sample,read_1,read_2,group,run_accession
-SRR5651408,/data/namlhs/fastq-gmwi2/SRR5651408_1.fastq.gz,/data/namlhs/fastq-gmwi2/SRR5651408_2.fastq.gz,A,
-SRR5651410,/data/namlhs/fastq-gmwi2/SRR5651410_1.fastq.gz,/data/namlhs/fastq-gmwi2/SRR5651410_2.fastq.gz,A,
-ERR1305915,s3://io-pipeline-tests/raw_data/raw_shotgun_sequence/manual/08e2c235-a151-49d6-8d2b-f89bf75a1fc0/ERR1305915/ERR1305915.fastq.gz,,groupA,
