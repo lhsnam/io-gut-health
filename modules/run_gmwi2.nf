@@ -1,22 +1,19 @@
-#!/usr/bin/env nextflow
-nextflow.enable.dsl=2
-
+// Process: run GMWI2 with retries and sequential execution
 process RUN_GMWI2 {
-  tag { "${sample}_${run}" }
+    tag { prefix }
+    publishDir "${params.outdir}/", mode: 'copy', overwrite: true
 
-  input:
-    tuple val(sample), path(read1), path(read2), val(group), val(run)
+    input:
+        tuple val(prefix), path(read1), path(read2)
+        val db_ready
 
-  output:
-    path "${sample}_${run}_GMWI2.txt", emit: gmwi2_score
-    path "${sample}_${run}_GMWI2_taxa.txt", emit: gmwi2_taxa
-    path "${sample}_${run}_metaphlan.txt", emit: metaphlan
+    output:
+        path "score/${prefix}_GMWI2.txt",       emit: gmwi2_score
+        path "taxa_coef/${prefix}_GMWI2_taxa.txt",  emit: gmwi2_taxa
+        path "metaphlan/${prefix}_metaphlan.txt",   emit: metaphlan
 
-  // adjust threads via params.threads or default to 8
-  cpus params.threads ?: 8
-
-  script:
-  """
-  gmwi2 -f ${read1} -r ${read2} -n ${task.cpus} -o ${sample}_${run}
-  """
+    script:
+    """
+    gmwi2 -f ${read1} -r ${read2} -n ${task.cpus} -o ${prefix}
+    """
 }
