@@ -1,16 +1,18 @@
-// Process: run GMWI2 with retries and sequential execution
 process RUN_GMWI2 {
     tag { prefix }
-    publishDir "${params.outdir}/", mode: 'copy', overwrite: true
+
+    publishDir "${params.outdir}/score",      mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2.txt"
+    publishDir "${params.outdir}/taxa_coef",  mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2_taxa.txt"
+    publishDir "${params.outdir}/metaphlan",  mode: 'copy', overwrite: true, pattern: "${prefix}_metaphlan.txt"
 
     input:
-        tuple val(prefix), path(read1), path(read2)
-        val db_ready
+      tuple val(prefix), path(read1), path(read2)
+      val   db_ready
 
     output:
-        path "score/${prefix}_GMWI2.txt",       emit: gmwi2_score
-        path "taxa_coef/${prefix}_GMWI2_taxa.txt",  emit: gmwi2_taxa
-        path "metaphlan/${prefix}_metaphlan.txt",   emit: metaphlan
+      path "${prefix}_GMWI2.txt",       emit: gmwi2_score
+      path "${prefix}_GMWI2_taxa.txt",  emit: gmwi2_taxa
+      path "${prefix}_metaphlan.txt",   emit: metaphlan
 
     script:
     """
