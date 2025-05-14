@@ -38,7 +38,7 @@ A reproducible Nextflow DSL2 pipeline to run GMWI2 on paired‑end metagenomic r
 
 ---
 
-## 🛠️ Local Database Setup
+## 🛠️ Local Database Setup (first run only)
 
 * From your project root, run:
 
