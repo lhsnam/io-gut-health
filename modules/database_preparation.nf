@@ -1,42 +1,41 @@
-// Process: prepare MetaPhlAn database once before GMWI2 runs
 process DATABASE_PREPARATION {
     tag "database_preparation"
     conda 'bioconda::gmwi2=1.6'
 
-    // Dummy input to trigger exactly once
     input:
-        val(trigger)
+      val trigger
 
-    // No outputs needed; just wait for install to complete
     output:
-        val(true), emit: db_ready
-
+      val true, emit: db_ready
+      
     script:
+    workflow.profile.contains('aws') ? 
+    // ───────────── AWS variant ─────────────
     """
-    DB_DIR=`sh -c "find \$CONDA_PREFIX -type d -name metaphlan_databases | head -n1"`
+    # find MetaPhlAn install dir
+    DB_DIR=\$(find \$CONDA_PREFIX -type d -name metaphlan_databases | head -n1)
     if [ -z "\$DB_DIR" ]; then
-      echo "ERROR: Could not find metaphlan_databases directory in \$CONDA_PREFIX" >&2
+      echo "ERROR: metaphlan_databases not found in \$CONDA_PREFIX" >&2
       exit 1
     fi
 
-    echo "Syncing mpa_v30_CHOCOPhlAn_201901 database ..."
-    cp -r ${params.metaphlan_db}* "\$DB_DIR"
-    
-    echo "Finished syncing mpa_v30_CHOCOPhlAn_201901 database."
+    # use aws sync
+    aws s3 sync ${params.metaphlan_db} \$DB_DIR
+    aws s3 sync ${params.human_genome} \$DB_DIR/GRCh38_noalt_as
 
-    set -euo pipefail
-
-    MD5_FILE=`sh -c "find \$CONDA_PREFIX -type f -name GRCh38_md5sum.txt | head -n1"`
-    if [ -z "\$MD5_FILE" ]; then
-      echo "ERROR: Could not find GRCh38_md5sum.txt in \$CONDA_PREFIX" >&2
+    """ 
+    : 
+    // ───────────── Local copy variant ─────────────
+    """
+    # find MetaPhlAn install dir
+    DB_DIR=\$(find \$CONDA_PREFIX -type d -name metaphlan_databases | head -n1)
+    if [ -z "\$DB_DIR" ]; then
+      echo "ERROR: metaphlan_databases not found in \$CONDA_PREFIX" >&2
       exit 1
     fi
 
-    DB_DIR=`sh -c "dirname \$MD5_FILE"`
-
-    echo "Syncing human genome folder to the location of MD5 file..."
-    cp -r ${params.human_genome} "\$DB_DIR"
-
-    echo "Finished syncing human genome."
+    # copy from local filesystem
+    cp -r ${params.metaphlan_db}* \$DB_DIR
+    cp -r ${params.human_genome} \$DB_DIR/GRCh38_noalt_as
     """
 }
