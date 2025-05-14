@@ -7,7 +7,6 @@ process DATABASE_PREPARATION {
 
     output:
       val true, emit: db_ready
-      
     script:
     workflow.profile.contains('aws') ? 
     // ───────────── AWS variant ─────────────
@@ -21,6 +20,15 @@ process DATABASE_PREPARATION {
 
     # use aws sync
     aws s3 sync ${params.metaphlan_db} \$DB_DIR
+
+    MD5_FILE=`sh -c "find \$CONDA_PREFIX -type f -name GRCh38_md5sum.txt | head -n1"`
+    if [ -z "\$MD5_FILE" ]; then
+      echo "ERROR: Could not find GRCh38_md5sum.txt in \$CONDA_PREFIX" >&2
+      exit 1
+    fi
+
+    DB_DIR=`sh -c "dirname \$MD5_FILE"`
+
     aws s3 sync ${params.human_genome} \$DB_DIR/GRCh38_noalt_as
 
     """ 
@@ -36,6 +44,15 @@ process DATABASE_PREPARATION {
 
     # copy from local filesystem
     cp -r ${params.metaphlan_db}* \$DB_DIR
+
+    MD5_FILE=`sh -c "find \$CONDA_PREFIX -type f -name GRCh38_md5sum.txt | head -n1"`
+    if [ -z "\$MD5_FILE" ]; then
+      echo "ERROR: Could not find GRCh38_md5sum.txt in \$CONDA_PREFIX" >&2
+      exit 1
+    fi
+
+    DB_DIR=`sh -c "dirname \$MD5_FILE"`
+    
     cp -r ${params.human_genome} \$DB_DIR/GRCh38_noalt_as
     """
 }
