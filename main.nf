@@ -7,11 +7,16 @@ if ( !params.design ) {
 }
 ch_design = file(params.design, checkIfExists: true)
 
-// Include input-check module
+// Include modules
 include { INPUT_CHECK } from './modules/input_check.nf'
 include { FILTER_SINGLE_END } from './modules/filter_single_end.nf'
 include { DATABASE_PREPARATION } from './modules/database_preparation.nf'
 include { RUN_GMWI2 } from './modules/run_gmwi2.nf'
+include { METAPHLAN_QIIMEPREP } from './modules/qiime/metaphlan_qiime.nf'
+include { QIIME_IMPORT } from './modules/qiime/qiime_import.nf'
+include { QIIME_DATAMERGE } from './modules/qiime/qiime_merge.nf'
+include { SCORE_TABLE } from './modules/score_table.nf'
+include { PLOT_SCORES } from './modules/plot_score.nf'
 
 // MAIN workflow: validate, parse, and run GMWI2
 workflow MAIN {
@@ -40,9 +45,78 @@ workflow MAIN {
         metaphlan    = gmwi_res.metaphlan
 }
 
+workflow QIIME {
+    take:
+        gmwi2_scores
+        gmwi2_taxa
+        metaphlan
+
+    main:
+        qiime_profiles       = Channel.empty()
+        qiime_taxonomy       = Channel.empty()
+        ch_output_file_paths = Channel.empty()
+        ch_warning_message   = Channel.empty()
+
+        // Turn the Path-only channel into (prefix, file) tuples:
+        def metaphlan_tuples = metaphlan.map { file ->
+        // remove the "_metaphlan.txt" suffix to get your prefix
+            def prefix = file.getName().replaceFirst(/_metaphlan\.txt$/, '')
+            tuple(prefix, file)
+        }
+
+        // Now invoke the process with the correct shape
+        qiime_prep = METAPHLAN_QIIMEPREP(metaphlan_tuples)
+        qiime_profiles = qiime_profiles.mix( METAPHLAN_QIIMEPREP.out.mpa_biomprofile )
+        qiime_taxonomy = qiime_taxonomy.mix( METAPHLAN_QIIMEPREP.out.taxonomy )
+
+        QIIME_IMPORT ( qiime_profiles )
+
+        QIIME_DATAMERGE( QIIME_IMPORT.out.absabun_qza.collect(), qiime_taxonomy.collect() )
+
+        ch_output_file_paths = ch_output_file_paths.mix(
+            QIIME_DATAMERGE.out.filtered_counts_collapsed_tsv.map{ "${params.outdir}/qiime_mergeddata/" + it.getName() }
+            )
+        QIIME_DATAMERGE.out.filtered_counts_collapsed_qza
+            .ifEmpty('There were no samples or taxa left after filtering! Try lower filtering criteria or examine your data quality.')
+            .filter( String )
+            .set{ ch_warning_message }
+
+    emit:
+        qiime_profiles
+        qiime_taxonomy
+        ch_output_file_paths
+        ch_warning_message
+        
+}
+
+workflow FINAL_REPORT {
+    take:
+        gmwi2_scores
+
+    main:
+        // first collapse all scores into one TSV
+        scores_tbl = SCORE_TABLE( gmwi2_scores.collect() )
+        // then plot them!
+        plot_html  = PLOT_SCORES( scores_tbl )
+
+    emit:
+        plot_html
+}
+
+
 // Top-level workflow invocation
 workflow {
     raw_sheet     = Channel.fromPath(ch_design)
-    cleaned_sheet = raw_sheet | FILTER_SINGLE_END
+    cleaned_sheet = FILTER_SINGLE_END(raw_sheet)
     MAIN(cleaned_sheet)
+
+    QIIME(
+        MAIN.out.gmwi2_scores,
+        MAIN.out.gmwi2_taxa,
+        MAIN.out.metaphlan
+    )
+
+    FINAL_REPORT(
+        MAIN.out.gmwi2_scores
+    )
 }
