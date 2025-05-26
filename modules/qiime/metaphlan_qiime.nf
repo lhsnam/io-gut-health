@@ -1,7 +1,5 @@
 process METAPHLAN_QIIMEPREP {
     tag { prefix }
-    
-    // conda "bioconda::biom-format=2.1.15"
     container 'quay.io/biocontainers/biom-format:2.1.15'
     
     input:

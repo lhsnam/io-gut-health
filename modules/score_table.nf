@@ -1,5 +1,6 @@
 process SCORE_TABLE {
-    tag "SCORE_TABLE"
+    tag "Final Gut Score Table"
+    
     publishDir "${params.outdir}/final", mode: 'copy', overwrite: true
 
     input:

@@ -1,6 +1,5 @@
-// Process: filter out single-end samples and warn
 process FILTER_SINGLE_END {
-    tag "filter_single_end"
+    tag "Remove Single-End Samples"
 
     container 'docker.io/namlhs/io-gmwi2-pipeline:5.25'
 

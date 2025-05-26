@@ -1,6 +1,6 @@
 process MARKER_MAP {
     tag { sample_id }
-    // container 'docker.io/namlhs/io-gmwi2-pipeline:5.25'
+
     publishDir "${params.outdir}/marker_map", mode: 'copy', overwrite: true
 
     input:
