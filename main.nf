@@ -17,6 +17,8 @@ include { QIIME_IMPORT } from './modules/qiime/qiime_import.nf'
 include { QIIME_DATAMERGE } from './modules/qiime/qiime_merge.nf'
 include { SCORE_TABLE } from './modules/score_table.nf'
 include { PLOT_SCORES } from './modules/plot_score.nf'
+include { MARKER_MAP } from './modules/marker_map.nf'
+include { MERGE_MARKER_MAP } from './modules/merge_marker.nf'
 
 // MAIN workflow: validate, parse, and run GMWI2
 workflow MAIN {
@@ -33,11 +35,8 @@ workflow MAIN {
             tuple(prefix, reads[0], reads[1])
         }
 
-        // DATA_PREPARATION: Prepare MetaPhlAn database once before GMWI2 runs
-        db_prepared = DATABASE_PREPARATION(trigger: true)
-
         // 3. Scatter GMWI2 runs
-        gmwi_res = RUN_GMWI2(gmwi_in, db_prepared.db_ready)
+        gmwi_res = RUN_GMWI2(gmwi_in)
 
     emit:
         gmwi2_scores = gmwi_res.gmwi2_score
@@ -92,16 +91,38 @@ workflow QIIME {
 workflow FINAL_REPORT {
     take:
         gmwi2_scores
+        gmwi2_taxa
+        metaphlan
 
     main:
-        // first collapse all scores into one TSV
         scores_tbl = SCORE_TABLE( gmwi2_scores.collect() )
-        // then plot them!
-        plot_html  = PLOT_SCORES( scores_tbl )
+
+        stats_pre = metaphlan
+            .combine(gmwi2_taxa)
+            .map { mpa, coef ->
+                def sample = mpa.baseName.replaceAll('_metaphlan\\.txt$', '')
+                tuple(sample, mpa, coef)
+            }
+
+        db_ch = Channel.value( file(params.marker_db) )
+
+        stats_in = stats_pre
+            .combine(db_ch)
+            .map { sample, mpa, coef, db ->
+                tuple(sample, mpa, coef, db)
+            }
+
+        marker_map_files = MARKER_MAP(stats_in)
+
+        all_marker_map = MERGE_MARKER_MAP( marker_map_files.collect() )
+
+        plot_html = PLOT_SCORES( scores_tbl, all_marker_map )
 
     emit:
+        all_marker_map
         plot_html
 }
+
 
 
 // Top-level workflow invocation
@@ -117,6 +138,8 @@ workflow {
     )
 
     FINAL_REPORT(
-        MAIN.out.gmwi2_scores
+        MAIN.out.gmwi2_scores,
+        MAIN.out.gmwi2_taxa,
+        MAIN.out.metaphlan,
     )
 }
