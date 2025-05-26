@@ -9,21 +9,21 @@ process MERGE_MARKER_MAP {
     path 'all_marker_map.tsv'
 
     script:
-    script:
-    /*
-     * Build a Groovy list → space-separated shell list,
-     * and also pull off the “first” for the header.
-     */
-    def fileList = stats_files.collect { it.getName() }.join(' ')
-    def first    = stats_files[0].getName()
+    // remove any duplicate paths
+    def uniqueFiles = stats_files.unique()
+    // build a space-separated list for the shell
+    def fileList    = uniqueFiles.join(' ')
+    def first       = uniqueFiles[0]
 
     """
-    # 1) Grab the header from the first file
+    # grab the header from the very first file only
     head -n1 ${first} > all_marker_map.tsv
 
-    # 2) For each file, skip its header and append its body
+    # for each unique file, skip its header and append its body
     for f in ${fileList}; do
-      tail -n +2 \"\$f\" >> all_marker_map.tsv
+      tail -n +2 "\$f" >> all_marker_map.tsv
     done
+    # after the for‐loop
+    sort all_marker_map.tsv | uniq > tmp.tsv && mv tmp.tsv all_marker_map.tsv
     """
 }
