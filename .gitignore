@@ -12,3 +12,9 @@ gmwi2_results/
 
 # Ignore local config file
 conf/local.config
+
+# Ignore test files
+*test*
+
+# Ignore git-related files
+.gitignore
