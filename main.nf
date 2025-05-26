@@ -85,7 +85,6 @@ workflow QIIME {
         qiime_taxonomy
         ch_output_file_paths
         ch_warning_message
-        
 }
 
 workflow FINAL_REPORT {
