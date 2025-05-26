@@ -1,8 +1,2 @@
-name: io-gmwi2-pipeline
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - python=3.8
-  - pandas=2.0.1
-  - plotly=5.14.1
+pandas==2.0.1
+plotly==5.14.1

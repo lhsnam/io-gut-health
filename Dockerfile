@@ -1,19 +1,11 @@
-FROM continuumio/miniconda3:latest
+FROM python:3.8-slim
 
-RUN apt-get update && \
-    apt-get install -y procps g++ bwa samtools && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt install -y procps g++ bwa samtools && apt-get clean
 
 WORKDIR /opt/analysis
 
-COPY environment.yml .
+COPY environment.yml /opt/analysis/environment.yml
 
-RUN conda install -y -c conda-forge mamba && \
-    mamba env create -f environment.yml && \
-    mamba clean -afy
-
-SHELL ["conda", "run", "-n", "io-gmwi2-pipeline", "/bin/bash", "-c"]
-
-ENV PATH=/opt/conda/envs/io-gmwi2-pipeline/bin:$PATH
+RUN pip install --no-cache-dir -r environment.yml
 
 CMD ["bash"]
