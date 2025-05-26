@@ -2,6 +2,8 @@
 process FILTER_SINGLE_END {
     tag "filter_single_end"
 
+    container 'docker.io/namlhs/io-gmwi2-pipeline:5.25'
+
     input:
         path design_file
 

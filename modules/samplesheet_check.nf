@@ -2,6 +2,8 @@ process SAMPLESHEET_CHECK {
     tag "$samplesheet"
     label 'process_single'
 
+    container 'docker.io/namlhs/io-gmwi2-pipeline:5.25'
+
     input:
     path samplesheet
 
