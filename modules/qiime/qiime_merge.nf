@@ -2,7 +2,7 @@ process QIIME_DATAMERGE {
 
     container 'quay.io/qiime2/core:2023.9'
 
-    publishDir "${params.outdir}/qiime_mergeddata", mode: 'copy', overwrite: true, pattern: "merged_filtered_counts.tsv"
+    publishDir "${params.outdir}/qiime_mergeddata", mode: 'copy', overwrite: true, pattern: "merged_filtered*.tsv"
 
     input:
     path(abs_qza)
