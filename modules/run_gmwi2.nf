@@ -1,7 +1,7 @@
 process RUN_GMWI2 {
     tag { prefix }
 
-    container 'docker.io/namlhs/gmwi2-predb:5.25'
+    container 'quay.io/biocontainers/gmwi2:1.6--pyhdfd78af_0'
 
     publishDir "${params.outdir}/score",      mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2.txt"
     publishDir "${params.outdir}/taxa_coef",  mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2_taxa.txt"
