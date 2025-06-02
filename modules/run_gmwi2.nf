@@ -17,6 +17,6 @@ process RUN_GMWI2 {
 
     script:
     """
-    gmwi2 -f ${read1} -r ${read2} -n ${task.cpus} -o ${prefix}
+    gmwi2 -f ${read1} -r ${read2} -n ${task.cpus} -o ${prefix} -m ${params.metaphlan_db} -g ${params.genome_db}
     """
 }
