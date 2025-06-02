@@ -9,6 +9,7 @@ process RUN_GMWI2 {
 
     input:
       tuple val(prefix), path(read1), path(read2)
+      path(db_location)
 
     output:
       path "${prefix}_GMWI2.txt",       emit: gmwi2_score
@@ -17,6 +18,6 @@ process RUN_GMWI2 {
 
     script:
     """
-    gmwi2 -f ${read1} -r ${read2} -n ${task.cpus} -o ${prefix} -m ${params.metaphlan_db} -g ${params.genome_db}
+    gmwi2 -f ${read1} -r ${read2} -n ${task.cpus} -o ${prefix} -m ${db_location}/metaphlan-databases/ -g ${db_location}/genome-databases/GRCh38_noalt_as/
     """
 }

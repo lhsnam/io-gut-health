@@ -35,8 +35,11 @@ workflow MAIN {
             tuple(prefix, reads[0], reads[1])
         }
 
-        // 3. Scatter GMWI2 runs
-        gmwi_res = RUN_GMWI2(gmwi_in)
+        // 3. Prepare database location channel
+        db_location_ch = Channel.value(file(params.database_location))
+
+        // 4. Scatter GMWI2 runs with database location as second input
+        gmwi_res = RUN_GMWI2(gmwi_in, db_location_ch)
 
     emit:
         gmwi2_scores = gmwi_res.gmwi2_score
