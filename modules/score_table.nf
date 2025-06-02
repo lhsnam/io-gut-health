@@ -1,5 +1,7 @@
 process SCORE_TABLE {
     tag "Final Gut Score Table"
+
+    container 'docker.io/namlhs/io-gmwi2-pipeline:5.25'
     
     publishDir "${params.outdir}/final", mode: 'copy', overwrite: true
 

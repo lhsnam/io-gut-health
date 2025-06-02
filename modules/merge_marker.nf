@@ -1,5 +1,7 @@
 process MERGE_MARKER_MAP {
     tag "Combine Marker Maps"
+
+    container 'docker.io/namlhs/io-gmwi2-pipeline:5.25'
     
     publishDir "${params.outdir}", mode: 'copy', overwrite: true
 

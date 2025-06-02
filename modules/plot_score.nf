@@ -1,5 +1,6 @@
 process PLOT_SCORES {
     tag "Visualize GMWI2 Scores"
+    
     container 'namlhs/io-gmwi2-pipeline:5.25'
 
     input:
