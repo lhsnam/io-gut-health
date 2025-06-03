@@ -3,6 +3,8 @@ process PLOT_SCORES {
     
     container 'namlhs/io-gmwi2-pipeline:5.25'
 
+    publishDir "${params.outdir}/final", mode: 'copy', overwrite: true
+    
     input:
       path scores_table
       path all_marker_map
