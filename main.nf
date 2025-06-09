@@ -9,9 +9,9 @@ ch_design = file(params.design, checkIfExists: true)
 
 // Include modules
 include { INPUT_CHECK } from './modules/input_check.nf'
-include { FILTER_SINGLE_END } from './modules/filter_single_end.nf'
 include { DATABASE_PREPARATION } from './modules/database_preparation.nf'
-include { RUN_GMWI2 } from './modules/run_gmwi2.nf'
+include { RUN_GMWI2_SINGLE } from './modules/run_gmwi2.nf'
+include { RUN_GMWI2_PAIR } from './modules/run_gmwi2.nf'
 include { METAPHLAN_QIIMEPREP } from './modules/qiime/metaphlan_qiime.nf'
 include { QIIME_IMPORT } from './modules/qiime/qiime_import.nf'
 include { QIIME_DATAMERGE } from './modules/qiime/qiime_merge.nf'
@@ -29,17 +29,35 @@ workflow MAIN {
         // 1. Input check and parsing the design sheet
         input_res = INPUT_CHECK(samplesheet)
 
-        // 2. Prepare inputs: determine prefix per sample
-        gmwi_in = input_res.fastq.map { meta, reads ->
-            def prefix = meta.run_accession ? "${meta.sample}_${meta.run_accession}" : meta.sample
-            tuple(prefix, reads[0], reads[1])
-        }
+        // 2. Prepare inputs: tuple as (meta, reads)
+        gmwi_in = input_res.fastq.map { meta, reads -> tuple(meta, reads) }
 
-        // 3. Prepare database location channel
-        db_location_ch = Channel.value(file(params.database_location))
+        // 3. Split into single-end and paired-end
+        gmwi_in_single = gmwi_in.filter { meta, reads -> meta.single_end?.toString() == 'true' }
+            .map { meta, reads -> 
+                def prefix = meta.run_accession ? "${meta.sample}_${meta.run_accession}" : meta.sample
+                tuple(prefix, reads[0], file(params.database_location))
+            }
 
-        // 4. Scatter GMWI2 runs with database location as second input
-        gmwi_res = RUN_GMWI2(gmwi_in, db_location_ch)
+        gmwi_in_pair = gmwi_in.filter { meta, reads -> !(meta.single_end?.toString() == 'true') }
+            .map { meta, reads -> 
+                def prefix = meta.run_accession ? "${meta.sample}_${meta.run_accession}" : meta.sample
+                tuple(prefix, reads[0], reads[1], file(params.database_location))
+            }
+
+        // 4. Prepare database location channel
+        // db_location_ch = Channel.value(file(params.database_location))
+
+        // 5. Run GMWI2 for each case
+        gmwi_res_single = RUN_GMWI2_SINGLE(gmwi_in_single)
+        gmwi_res_pair   = RUN_GMWI2_PAIR(gmwi_in_pair)
+
+        // 6. Merge results
+        gmwi_res = [
+            gmwi2_score: (gmwi_res_single.gmwi2_score ?: Channel.empty()).mix(gmwi_res_pair.gmwi2_score ?: Channel.empty()),
+            gmwi2_taxa:  (gmwi_res_single.gmwi2_taxa  ?: Channel.empty()).mix(gmwi_res_pair.gmwi2_taxa  ?: Channel.empty()),
+            metaphlan:   (gmwi_res_single.metaphlan   ?: Channel.empty()).mix(gmwi_res_pair.metaphlan   ?: Channel.empty())
+        ]
 
     emit:
         gmwi2_scores = gmwi_res.gmwi2_score
@@ -129,9 +147,8 @@ workflow FINAL_REPORT {
 
 // Top-level workflow invocation
 workflow {
-    raw_sheet     = Channel.fromPath(ch_design)
-    cleaned_sheet = FILTER_SINGLE_END(raw_sheet)
-    MAIN(cleaned_sheet)
+    raw_sheet = Channel.fromPath(ch_design)
+    MAIN(raw_sheet)
 
     QIIME(
         MAIN.out.gmwi2_scores,
