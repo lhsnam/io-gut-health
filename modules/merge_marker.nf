@@ -16,13 +16,16 @@ process MERGE_MARKER_MAP {
     def fileList    = uniqueFiles.join(' ')
     def first       = uniqueFiles[0]
 
-    """
-    head -n1 ${first} > all_marker_map.tsv
+  """
+  # take header from the first file
+  head -n1 ${first} > all_marker_map.tsv
 
+  # concatenate and sort+uniq *only* the data rows
+  {
     for f in ${fileList}; do
-      tail -n +2 "\$f" >> all_marker_map.tsv
+      tail -n +2 "\$f"
     done
-    
-    sort all_marker_map.tsv | uniq > tmp.tsv && mv tmp.tsv all_marker_map.tsv
-    """
+  } | sort | uniq >> all_marker_map.tsv
+  """
+
 }
