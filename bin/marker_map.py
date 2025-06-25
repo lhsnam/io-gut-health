@@ -37,6 +37,26 @@ def main():
     # 1) load MetaPhlAn, species-level
     mp = pd.read_csv(args.mpa, sep='\t', comment='#', header=None,
                      names=['clade_name','tax_id','rel_abundance','_'])
+    
+    # Detect the single-row UNKNOWN case:
+    if mp.shape[0] == 1 and mp.iloc[0]['clade_name'] == 'UNKNOWN':
+        unk = mp.iloc[0]
+        df = pd.DataFrame([{
+            'sample':         args.sample,
+            'species':        'UNKNOWN',
+            'user_abundance': unk['rel_abundance'],
+            'db_median':      pd.NA,
+            'db_mean':        pd.NA
+        }])
+        # write NAs as the literal string "NA"
+        df.to_csv(
+            args.output,
+            sep='\t',
+            index=False,
+            na_rep='NA'
+        )
+        return
+
     sp = mp[ mp['clade_name'].str.contains(r"\|s__") ]
     sp = sp.assign(species=sp['clade_name'].map(species_name))
 
