@@ -50,9 +50,11 @@ def metaphlan_profileparse(mpa_profiletable, label):
     # Standard processing: keep only species-level entries
     profile = profile[['clade_name', 'relative_abundance', 'NCBI_tax_id']]
     profile.columns = ['clade_name', 'abundance', 'NCBI_tax_id']
-    # select species (s__) but not strain (t__)
-    profile = profile[profile["clade_name"].str.contains('s__')]
-    profile = profile[~profile["clade_name"].str.contains('t__')]
+    # select species (s__) but not strain (t__), and include UNKNOWN
+    profile = profile[
+        (profile["clade_name"].str.contains('s__') & ~profile["clade_name"].str.contains('t__')) |
+        (profile["clade_name"].str.contains('UNKNOWN'))
+    ]
 
     # Output only Feature ID (NCBI_tax_id) and abundance
     profile_out = pd.DataFrame({
