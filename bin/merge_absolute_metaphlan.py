@@ -1,49 +1,66 @@
 #!/usr/bin/env python
-import os
-import pandas as pd
 import argparse
+import pandas as pd
+import os
 
-def read_metaphlan_file(filepath):
-    df = pd.read_csv(filepath, sep='\t')
-    # Change 'unclassified' to 'UNKNOWN' in clade_name column if it exists
-    if 'clade_name' in df.columns:
-        df['clade_name'] = df['clade_name'].replace('unclassified', 'UNKNOWN')
-    df = df[['clade_taxid', 'estimated_number_of_reads_from_the_clade']]
-    df = df[df['clade_taxid'].astype(str).str.isdigit() | (df['clade_taxid'].astype(str) == '-1')]
-    df['estimated_number_of_reads_from_the_clade'] = pd.to_numeric(df['estimated_number_of_reads_from_the_clade'], errors='coerce').fillna(0)
-    # Sum all rows with clade_taxid == -1
-    df['clade_taxid'] = df['clade_taxid'].astype(str)
-    df = df.groupby('clade_taxid', as_index=False)['estimated_number_of_reads_from_the_clade'].sum()
-    df = df.set_index('clade_taxid')
-    return df
+def extract_ncbi_id(clade_taxid):
+    try:
+        parts = str(clade_taxid).split('|')
+        # Get last non-empty numeric part
+        for part in reversed(parts):
+            if part.strip().isdigit():
+                return int(part)
+        return -1
+    except Exception:
+        return -1
 
-def get_sample_name(filepath):
-    basename = os.path.basename(filepath)
-    if basename.endswith('_profile.txt'):
-        return basename.split('_profile.txt')[0]
-    else:
-        return os.path.splitext(basename)[0]
+def parse_input_files(file_paths):
+    result = {}
+    all_taxids = set()
+
+    for path in file_paths:
+        sample_name = os.path.basename(path).split('_')[0]
+        df = pd.read_csv(path, sep='\t')
+
+        # Normalize unclassified entries to behave like UNKNOWN
+        df['clade_name'] = df['clade_name'].fillna('')
+        df.loc[df['clade_name'].str.lower() == 'unclassified', 'clade_taxid'] = -1
+        df.loc[df['clade_name'].str.lower() == 'unclassified', 'clade_name'] = 'UNKNOWN'
+
+        # Filter: keep only rows with "s__" or "UNKNOWN"
+        df = df[df['clade_name'].str.contains("s__") | (df['clade_name'] == "UNKNOWN")]
+
+        # Extract standardized NCBI_ID
+        df['NCBI_ID'] = df['clade_taxid'].apply(extract_ncbi_id)
+
+        # Aggregate by NCBI_ID
+        df = df.groupby('NCBI_ID')['estimated_number_of_reads_from_the_clade'].sum().reset_index()
+        df = df.rename(columns={'estimated_number_of_reads_from_the_clade': sample_name})
+
+        result[sample_name] = df.set_index('NCBI_ID')[sample_name]
+        all_taxids.update(df['NCBI_ID'].values)
+
+    # Combine all results
+    all_taxids = sorted(all_taxids)
+    combined_df = pd.DataFrame(index=all_taxids)
+
+    for sample, series in result.items():
+        combined_df[sample] = series
+
+    combined_df.fillna(0, inplace=True)
+    combined_df.index.name = 'NCBI_ID'
+    return combined_df.reset_index()
 
 def main():
-    parser = argparse.ArgumentParser(description="Merge MetaPhlAn estimated reads tables.")
-    parser.add_argument("-o", default="total_absolute_abundance.tsv", help="Output table file name (default: total_absolute_abundance.tsv)")
-    parser.add_argument("-i", nargs='+', required=True, help="Input file names separated by space")
+    parser = argparse.ArgumentParser(description='Aggregate species-level absolute abundance from MetaPhlAn outputs.')
+    parser.add_argument('-i', '--input', nargs='+', required=True, help='Input files separated by space')
+    parser.add_argument('-o', '--output', default='total_absolute_abundance.tsv', help='Output file name')
+
     args = parser.parse_args()
 
-    output_file = args.o
-    input_files = args.i
+    combined_df = parse_input_files(args.input)
+    combined_df.to_csv(args.output, sep='\t', index=False)
+    print(f"Saved combined table to: {args.output}")
 
-    sample_names = [get_sample_name(f) for f in input_files]
-    dfs = [read_metaphlan_file(f) for f in input_files]
-
-    merged = pd.concat(dfs, axis=1, join='outer')
-    merged.columns = sample_names
-    merged = merged.fillna(0)
-
-    merged = merged.reset_index()
-    merged.rename(columns={'clade_taxid': '#OTU ID'}, inplace=True)
-
-    merged.to_csv(output_file, sep='\t', index=False)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
