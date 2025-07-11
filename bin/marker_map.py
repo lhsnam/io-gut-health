@@ -36,14 +36,17 @@ def main():
 
     # 1) load MetaPhlAn, species-level
     mp = pd.read_csv(args.mpa, sep='\t', comment='#', header=None,
-                     names=['clade_name','tax_id','rel_abundance','_'])
+                     names=['clade_name','tax_id','rel_abundance','coverage','read_count'])
     
-    # Detect the single-row UNKNOWN case:
-    if mp.shape[0] == 1 and mp.iloc[0]['clade_name'] == 'UNKNOWN':
+    # Export mp DataFrame to a TSV file for inspection
+    mp.to_csv(f"{args.sample}_mpa_full.tsv", sep='\t', index=False)
+    
+    # Detect the single-row UNKNOWN or unclassified case:
+    if mp.shape[0] == 1 and mp.iloc[0]['clade_name'] in ['UNKNOWN', 'unclassified']:
         unk = mp.iloc[0]
         df = pd.DataFrame([{
             'sample':         args.sample,
-            'species':        'UNKNOWN',
+            'species':        mp.iloc[0]['clade_name'],
             'user_abundance': unk['rel_abundance'],
             'db_median':      pd.NA,
             'db_mean':        pd.NA
@@ -57,7 +60,7 @@ def main():
         )
         return
 
-    sp = mp[ mp['clade_name'].str.contains(r"\|s__") ]
+    sp = mp[ mp['clade_name'].astype(str).str.contains(r"\|s__") ]
     sp = sp.assign(species=sp['clade_name'].map(species_name))
 
     # 2) load database
@@ -74,13 +77,18 @@ def main():
             if len(top_list) >= 10:
                 break
     top_df = pd.DataFrame(top_list)
+    top_df.to_csv(f"{args.sample}_top_species.tsv", sep='\t', index=False)
 
     # 4) extras from coef
     coef = pd.read_csv(args.coef, sep='\t')
     coef_sp = coef[ coef['taxa_name'].str.contains(r"\|s__") ]
     coef_sp = coef_sp.assign(species=coef_sp['taxa_name'].map(species_name))
+
+    # Export coef_sp to a TSV file for inspection
+    coef_sp.to_csv(f"{args.sample}_coef_species.tsv", sep='\t', index=False)
     # drop those in top and only keep those present in db
     extra_df = coef_sp[ ~coef_sp['species'].isin(top_df['species']) & coef_sp['species'].isin(db.index) ]
+
     extra_df = extra_df.rename(columns={'taxa_name':'taxon'})[['taxon']]
     extra_df = extra_df.assign(user_abundance=pd.NA, species=extra_df['taxon'].map(species_name))
 

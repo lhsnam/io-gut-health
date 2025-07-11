@@ -24,11 +24,13 @@ def metaphlan_profileparse(mpa_profiletable, label):
     # Read MetaPhlAn3 profile, dropping comment lines
     profile = pd.read_csv(mpa_profiletable, sep="\t", comment='#')
 
-    # Check for 100% UNKNOWN case (single row with clade_name UNKNOWN)
-    if profile.shape[0] == 1 and profile.iloc[0]['clade_name'] == 'UNKNOWN':
+    # Check for 100% UNKNOWN or unclassified case (single row with clade_name UNKNOWN or unclassified)
+    if profile.shape[0] == 1 and profile.iloc[0]['clade_name'] in ['UNKNOWN', 'unclassified']:
         unk = profile.iloc[0]
-        tax_id = unk['NCBI_tax_id']
+        tax_id = unk['clade_taxid']
         abundance = unk['relative_abundance']
+        # If clade_name is 'unclassified', change to 'UNKNOWN'
+        taxon_name = 'UNKNOWN' if unk['clade_name'] == 'unclassified' else unk['clade_name']
         # Create abundance table matching standard format: Feature ID and sample label
         zero_abun = pd.DataFrame({
             'Feature ID': [str(tax_id)],
@@ -40,7 +42,7 @@ def metaphlan_profileparse(mpa_profiletable, label):
         # Create taxonomy table stub: tax_id and UNKNOWN
         zero_tax = pd.DataFrame({
             'Feature ID': [str(tax_id)],
-            'Taxon':      ['UNKNOWN']
+            'Taxon':      [taxon_name]
         })
         zero_tax.to_csv(
             f"{label}_profile_taxonomy.txt", sep="\t", index=False
@@ -48,17 +50,20 @@ def metaphlan_profileparse(mpa_profiletable, label):
         return
 
     # Standard processing: keep only species-level entries
-    profile = profile[['clade_name', 'relative_abundance', 'NCBI_tax_id']]
-    profile.columns = ['clade_name', 'abundance', 'NCBI_tax_id']
-    # select species (s__) but not strain (t__), and include UNKNOWN
+    profile = profile[['clade_name', 'relative_abundance', 'clade_taxid']]
+    profile.columns = ['clade_name', 'abundance', 'clade_taxid']
+    # select species (s__) but not strain (t__), and include UNKNOWN or unclassified
     profile = profile[
-        (profile["clade_name"].str.contains('s__') & ~profile["clade_name"].str.contains('t__')) |
-        (profile["clade_name"].str.contains('UNKNOWN'))
+        (
+            profile["clade_name"].str.contains('s__') & ~profile["clade_name"].str.contains('t__')
+        ) |
+        (profile["clade_name"].isin(['UNKNOWN', 'unclassified']))
     ]
+    profile.loc[profile["clade_name"] == "unclassified", "clade_name"] = "UNKNOWN"
 
-    # Output only Feature ID (NCBI_tax_id) and abundance
+    # Output only Feature ID (clade_taxid) and abundance
     profile_out = pd.DataFrame({
-        "Feature ID": profile["NCBI_tax_id"].str.split("|").str[-1],
+        "Feature ID": profile["clade_taxid"].str.split("|").str[-1],
         label: profile["abundance"]
     })
     profile_out.to_csv(
@@ -68,7 +73,7 @@ def metaphlan_profileparse(mpa_profiletable, label):
     # Formatting supplemental taxonomy table needed by QIIME2
     # Column names MUST be "Feature ID", "Taxon"
     taxonomy = pd.DataFrame({
-        "Feature ID": profile["NCBI_tax_id"].str.split('|').str[-1],
+        "Feature ID": profile["clade_taxid"].str.split('|').str[-1],
         "Taxon": profile["clade_name"].str.replace("|", ";", regex=False)
     })
     taxonomy.to_csv(
