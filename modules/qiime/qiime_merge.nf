@@ -7,6 +7,7 @@ process QIIME_DATAMERGE {
     input:
     path(abs_qza)
     path(taxonomy)
+    path(profile)
 
     output:
     path('merged_taxonomy.qza')                  , optional: true, emit: taxonomy_qza
@@ -15,9 +16,12 @@ process QIIME_DATAMERGE {
     path('*.qza')
     path('merged_filtered_counts.tsv')           , optional: true, emit: count_table
     path('total_relative_abundance.tsv')         , optional: true, emit: relative_abundance_total
+    path('total_absolute_abundance.tsv')         , optional: true, emit: absolute_abundance_total
 
     script:
     """
+    merge_absolute_metaphlan.py -i $profile
+
     qiime feature-table merge \
         --i-tables $abs_qza \
         --o-merged-table merged_raw_counts.qza

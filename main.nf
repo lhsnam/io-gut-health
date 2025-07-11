@@ -91,7 +91,7 @@ workflow QIIME {
 
         QIIME_IMPORT ( qiime_profiles )
 
-        QIIME_DATAMERGE( QIIME_IMPORT.out.absabun_qza.collect(), qiime_taxonomy.collect() )
+        QIIME_DATAMERGE( QIIME_IMPORT.out.relabun_qza.collect(), qiime_taxonomy.collect() , METAPHLAN_QIIMEPREP.out.profile.collect() )
 
         ch_output_file_paths = ch_output_file_paths.mix(
             QIIME_DATAMERGE.out.filtered_counts_collapsed_tsv.map{ "${params.outdir}/qiime_mergeddata/" + it.getName() }

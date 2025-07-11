@@ -1,6 +1,8 @@
 process METAPHLAN_QIIMEPREP {
     tag { prefix }
     container 'quay.io/biocontainers/biom-format:2.1.15'
+
+    publishDir "${params.outdir}/metaphlan_profiles", mode: 'copy', overwrite: true, pattern: "${prefix}_profile.txt"
     
     input:
     tuple val(prefix), path(mpa_profile)
@@ -8,6 +10,7 @@ process METAPHLAN_QIIMEPREP {
     output:
     tuple val(prefix), path('*relabun_parsed_mpaprofile.biom') , emit: mpa_biomprofile
     path('*profile_taxonomy.txt') , emit: taxonomy
+    path('*_profile.txt') , emit: profile
 
     script:
     """
