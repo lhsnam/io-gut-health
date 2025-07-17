@@ -20,39 +20,45 @@ include { PLOT_SCORES } from './modules/plot_score.nf'
 include { MARKER_MAP } from './modules/marker_map.nf'
 include { MERGE_MARKER_MAP } from './modules/merge_marker.nf'
 
-// MAIN workflow: validate, parse, and run GMWI2
-workflow MAIN {
+// Define input parameters
+workflow PREPARATION_INPUT {
     take:
         samplesheet
 
     main:
-        // 1. Input check and parsing the design sheet
+        // Validate and parse input
         input_res = INPUT_CHECK(samplesheet)
 
-        // 2. Prepare inputs: tuple as (meta, reads)
-        gmwi_in = input_res.fastq.map { meta, reads -> tuple(meta, reads) }
+        // Prepare standardized tuple for downstream tools
+        prepared_input = input_res.fastq.map { meta, reads -> tuple(meta, reads) }
 
-        // 3. Split into single-end and paired-end
-        gmwi_in_single = gmwi_in.filter { meta, reads -> meta.single_end?.toString() == 'true' }
+    emit:
+        prepared_input
+}
+
+
+workflow GMWI {
+    take:
+        prepared_input
+
+    main:
+        gmwi_in_single = prepared_input
+            .filter { meta, reads -> meta.single_end?.toString() == 'true' }
             .map { meta, reads -> 
                 def prefix = meta.run_accession ? "${meta.sample}_${meta.run_accession}" : meta.sample
                 tuple(prefix, reads[0], file(params.database_location))
             }
 
-        gmwi_in_pair = gmwi_in.filter { meta, reads -> !(meta.single_end?.toString() == 'true') }
+        gmwi_in_pair = prepared_input
+            .filter { meta, reads -> !(meta.single_end?.toString() == 'true') }
             .map { meta, reads -> 
                 def prefix = meta.run_accession ? "${meta.sample}_${meta.run_accession}" : meta.sample
                 tuple(prefix, reads[0], reads[1], file(params.database_location))
             }
 
-        // 4. Prepare database location channel
-        // db_location_ch = Channel.value(file(params.database_location))
-
-        // 5. Run GMWI2 for each case
         gmwi_res_single = RUN_GMWI2_SINGLE(gmwi_in_single)
         gmwi_res_pair   = RUN_GMWI2_PAIR(gmwi_in_pair)
 
-        // 6. Merge results
         gmwi_res = [
             gmwi2_score: (gmwi_res_single.gmwi2_score ?: Channel.empty()).mix(gmwi_res_pair.gmwi2_score ?: Channel.empty()),
             gmwi2_taxa:  (gmwi_res_single.gmwi2_taxa  ?: Channel.empty()).mix(gmwi_res_pair.gmwi2_taxa  ?: Channel.empty()),
@@ -91,7 +97,7 @@ workflow QIIME {
 
         QIIME_IMPORT ( qiime_profiles )
 
-        QIIME_DATAMERGE( QIIME_IMPORT.out.absabun_qza.collect(), qiime_taxonomy.collect() )
+        QIIME_DATAMERGE( QIIME_IMPORT.out.relabun_qza.collect(), qiime_taxonomy.collect() , METAPHLAN_QIIMEPREP.out.profile.collect() )
 
         ch_output_file_paths = ch_output_file_paths.mix(
             QIIME_DATAMERGE.out.filtered_counts_collapsed_tsv.map{ "${params.outdir}/qiime_mergeddata/" + it.getName() }
@@ -148,17 +154,35 @@ workflow FINAL_REPORT {
 // Top-level workflow invocation
 workflow {
     raw_sheet = Channel.fromPath(ch_design)
-    MAIN(raw_sheet)
 
-    QIIME(
-        MAIN.out.gmwi2_scores,
-        MAIN.out.gmwi2_taxa,
-        MAIN.out.metaphlan
-    )
+    // Step 1: Always prepare input, regardless of tool
+    PREPARATION_INPUT(raw_sheet)
 
-    FINAL_REPORT(
-        MAIN.out.gmwi2_scores,
-        MAIN.out.gmwi2_taxa,
-        MAIN.out.metaphlan,
-    )
+    // Step 2: Route based on --tool flag
+    if (params.tool == 'gmwi2') {
+        // Run GMWI2 branch
+        GMWI(PREPARATION_INPUT.out.prepared_input)
+
+        QIIME(
+            GMWI.out.gmwi2_scores,
+            GMWI.out.gmwi2_taxa,
+            GMWI.out.metaphlan
+        )
+
+        FINAL_REPORT(
+            GMWI.out.gmwi2_scores,
+            GMWI.out.gmwi2_taxa,
+            GMWI.out.metaphlan
+        )
+    }
+
+    else if (params.tool == 'q2-predict') {
+        // Run Q2-PREDICT branch
+        Q2_PREDICT(PREPARATION_INPUT.out.prepared_input)
+    }
+
+    else {
+        exit 1, "ERROR: Invalid value for --tool. Choose 'gmwi2' or 'q2-predict'"
+    }
 }
+

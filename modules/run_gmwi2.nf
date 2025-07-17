@@ -1,7 +1,7 @@
 process RUN_GMWI2_SINGLE {
     tag { prefix }
 
-    container 'docker.io/namlhs/gmwi2-custom:6.25'
+    container 'docker.io/namlhs/gmwi2-custom:7.25'
 
     publishDir "${params.outdir}/score",      mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2.txt"
     publishDir "${params.outdir}/taxa_coef",  mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2_taxa.txt"
@@ -24,7 +24,7 @@ process RUN_GMWI2_SINGLE {
 process RUN_GMWI2_PAIR {
     tag { prefix }
 
-    container 'docker.io/namlhs/gmwi2-custom:6.25'
+    container 'docker.io/namlhs/gmwi2-custom:7.25'
 
     publishDir "${params.outdir}/score",      mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2.txt"
     publishDir "${params.outdir}/taxa_coef",  mode: 'copy', overwrite: true, pattern: "${prefix}_GMWI2_taxa.txt"
