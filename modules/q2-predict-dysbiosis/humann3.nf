@@ -1,7 +1,8 @@
 process RUN_HUMANN {
     tag "${prefix}"
     
-    cpus 4
+    cpus 8
+    memory '64 GB'
 
     container 'quay.io/biocontainers/humann:3.7--pyh7cba7a3_0'
 
