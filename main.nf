@@ -282,41 +282,20 @@ workflow FINAL_REPORT {
 // Top-level workflow invocation
 workflow {
     raw_sheet = Channel.fromPath(ch_design)
-
-    // Step 1: Always prepare input, regardless of tool
     PREPARATION_INPUT(raw_sheet)
 
-    // Step 2: Route based on --tool flag
     if (params.tool == 'gmwi2') {
-        // Run GMWI2 branch
         GMWI(PREPARATION_INPUT.out.prepared_input)
-
-    QIIME(
-        MAIN.out.gmwi2_scores,
-        MAIN.out.gmwi2_taxa,
-        MAIN.out.metaphlan
-    )
         QIIME_METAPHLAN(
-            GMWI.out.gmwi2_scores,
-            GMWI.out.gmwi2_taxa,
             GMWI.out.metaphlan
         )
-
-    FINAL_REPORT(
-        MAIN.out.gmwi2_scores,
-        MAIN.out.gmwi2_taxa,
-        MAIN.out.metaphlan,
-    )
-}
         FINAL_REPORT(
             GMWI.out.gmwi2_scores,
             GMWI.out.gmwi2_taxa,
             GMWI.out.metaphlan
         )
     }
-
     else if (params.tool == 'q2-predict') {
-        // Run Q2-PREDICT branch
         Q2_PREDICT(PREPARATION_INPUT.out.prepared_input)
         QIIME_METAPHLAN(Q2_PREDICT.out.metaphlan)
         Q2_PREP(
@@ -327,9 +306,9 @@ workflow {
             QIIME_METAPHLAN.out.taxonomy_table
         )
     }
-
     else {
         exit 1, "ERROR: Invalid value for --tool. Choose 'gmwi2' or 'q2-predict'"
     }
 }
+
 
