@@ -75,7 +75,7 @@ It integrates state-of-the-art tools (MetaPhlAn, HUMAnN, GMWI2, QIIME2) to deliv
 - [MetaPhlAn](https://github.com/biobakery/MetaPhlAn)
 - [HUMAnN](https://github.com/biobakery/humann)
 - [QIIME2](https://qiime2.org/)
-- [GMWI2](https://github.com/SegataLab/gmwi2)
+- [GMWI2](https://github.com/danielchang2002/GMWI2)
 - [q2-predict-dysbiosis](https://github.com/Kizielins/q2-predict-dysbiosis)
 - [**io-gut-health**](https://github.com/lhsnam/io-gut-health)
 
