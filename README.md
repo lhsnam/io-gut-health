@@ -1,5 +1,5 @@
-<p align="center">
-  <img src="img/io-gut-health.gif" alt="Trust your gut - io-gut-health banner" width="600"/>
+<p align="center" width="100%">
+   <img src="img/io-gut-health.gif" alt="Trust your gut - io-gut-health banner" style="width:100%;max-width:1000px;min-width:300px;display:block;margin:auto;" />
 </p>
 
 ---
@@ -46,14 +46,17 @@ It integrates state-of-the-art tools (MetaPhlAn, HUMAnN, GMWI2, QIIME2) to deliv
     sample3,s3_run1_R1.fastq.gz,s3_run1_R2.fastq.gz,groupB,,
     ```
 
-2. **Launch the pipeline:**
+2. **Launch the pipeline**:
 
-    ```bash
-    nextflow run main.nf \
-      --design design.csv \
-      --outdir results/io-gut-health \
-      -profile local
-    ```
+   ```bash
+   nextflow run main.nf \
+     --design design.csv \
+     --outdir results/io-gut-health \
+     --tool gmwi \
+     -profile local
+   ```
+
+   Replace `gmwi` with `q2-predict` in `--tool` to use the alternative scoring method.
 
 ---
 
