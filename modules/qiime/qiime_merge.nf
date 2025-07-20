@@ -2,7 +2,8 @@ process QIIME_DATAMERGE {
 
     container 'quay.io/qiime2/core:2023.9'
 
-    publishDir "${params.outdir}/qiime_mergeddata", mode: 'copy', overwrite: true, pattern: "merged_filtered*.tsv"
+    publishDir "${params.outdir}/qiime_mergeddata", mode: 'copy', overwrite: true, pattern: "*.csv"
+    publishDir "${params.outdir}/qiime_mergeddata", mode: 'copy', overwrite: true, pattern: "species.txt"
 
     input:
     path(abs_qza)
@@ -15,6 +16,9 @@ process QIIME_DATAMERGE {
     path('merged_filtered_counts_collapsed.tsv') , optional: true, emit: filtered_counts_collapsed_tsv
     path('*.qza')
     path('merged_filtered_counts.tsv')           , optional: true, emit: count_table
+    path('total_relative_abundance.csv')         , optional: true, emit: relative_abundance_total
+    path('total_absolute_abundance.csv')         , optional: true, emit: absolute_abundance_total
+    path('species.txt')                          , optional: true, emit: species_relative_abundance
 
     script:
     """
@@ -63,5 +67,7 @@ process QIIME_DATAMERGE {
             --output-path merged_filtered_counts_collapsed_out
         biom convert -i merged_filtered_counts_collapsed_out/feature-table.biom -o merged_filtered_counts_collapsed.tsv --to-tsv
     fi
+
+    convert_abundance.py -i-id merged_filtered_counts.tsv -i-species merged_filtered_counts_collapsed.tsv
     """
 }
