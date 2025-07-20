@@ -7,7 +7,7 @@
 ## 🧬 What is io-gut-health?
 
 **io-gut-health** is a reproducible, modular Nextflow pipeline for gut microbiome profiling and scoring.  
-It integrates state-of-the-art tools (MetaPhlAn, HUMAnN, GMWI2, QIIME2) to deliver robust, scalable, and interpretable gut health metrics from metagenomic sequencing data.
+It integrates state-of-the-art tools (MetaPhlAn, HUMAnN, GMWI2,Q2-PREDICT-DYSBIOSIS) to deliver robust, scalable, and interpretable gut health metrics from metagenomic sequencing data.
 
 ---
 
