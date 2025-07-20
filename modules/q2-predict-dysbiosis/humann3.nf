@@ -1,9 +1,6 @@
 process RUN_HUMANN {
     tag "${prefix}"
     
-    cpus 8
-    memory '64 GB'
-
     container 'quay.io/biocontainers/humann:3.7--pyh7cba7a3_0'
 
     publishDir "${params.outdir}/humann/genefamilies",  mode: 'copy', overwrite: true, pattern: "${prefix}_genefamilies.tsv"
