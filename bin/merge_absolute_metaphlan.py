@@ -54,12 +54,12 @@ def parse_input_files(file_paths):
 def main():
     parser = argparse.ArgumentParser(description='Aggregate species-level absolute abundance from MetaPhlAn outputs.')
     parser.add_argument('-i', '--input', nargs='+', required=True, help='Input files separated by space')
-    parser.add_argument('-o', '--output', default='total_absolute_abundance.tsv', help='Output file name')
+    parser.add_argument('-o', '--output', default='total_absolute_abundance.csv', help='Output file name')
 
     args = parser.parse_args()
 
     combined_df = parse_input_files(args.input)
-    combined_df.to_csv(args.output, sep='\t', index=False)
+    combined_df.to_csv(args.output, sep=',', index=False)
     print(f"Saved combined table to: {args.output}")
 
 if __name__ == '__main__':

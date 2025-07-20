@@ -19,6 +19,13 @@ include { SCORE_TABLE } from './modules/score_table.nf'
 include { PLOT_SCORES } from './modules/plot_score.nf'
 include { MARKER_MAP } from './modules/marker_map.nf'
 include { MERGE_MARKER_MAP } from './modules/merge_marker.nf'
+include { RUN_HUMANN } from './modules/q2-predict-dysbiosis/humann3.nf'
+include { RUN_METAPHLAN } from './modules/q2-predict-dysbiosis/metaphlan.nf'
+include { RUN_TRIMGALORE_SINGLE } from './modules/q2-predict-dysbiosis/trim_galore.nf'
+include { RUN_TRIMGALORE_PAIR } from './modules/q2-predict-dysbiosis/trim_galore.nf'
+include { Q2_MANIFEST } from './modules/qiime/q2_manifest.nf'
+include { Q2_PREDICT_DYSBIOSIS } from './modules/q2-predict-dysbiosis/q2_predict_dysbiosis.nf'
+
 
 // Define input parameters
 workflow PREPARATION_INPUT {
@@ -71,10 +78,82 @@ workflow GMWI {
         metaphlan    = gmwi_res.metaphlan
 }
 
-workflow QIIME {
+workflow RUN_TRIMGALORE {
     take:
-        gmwi2_scores
-        gmwi2_taxa
+        input_data
+
+    main:
+        // 1. Detect SE/PE input
+        single_end_data = input_data
+            .filter { prefix, reads -> reads.size() == 1 }
+            .map { prefix, reads -> tuple(prefix, reads[0]) }
+
+        paired_end_data = input_data
+            .filter { prefix, reads -> reads.size() == 2 }
+            .map { prefix, reads -> tuple(prefix, reads[0], reads[1]) }
+
+        // 2. Run TrimGalore accordingly
+        se_results = RUN_TRIMGALORE_SINGLE(single_end_data)
+        pe_results = RUN_TRIMGALORE_PAIR(paired_end_data)
+
+        // 3. Merge SE and PE output
+        all_results = se_results.mix(pe_results)
+
+    emit:
+        all_results
+}
+
+
+workflow Q2_PREDICT {
+    take:
+        prepared_input
+
+    main:
+        // 1. Format input for TrimGalore
+        trim_input = prepared_input.map { meta, reads ->
+            def prefix = meta.run_accession ? "${meta.sample}_${meta.run_accession}" : meta.sample
+            tuple(prefix, reads)
+        }
+
+        trimmed_reads = RUN_TRIMGALORE(trim_input)
+
+        metaphlan_input = trimmed_reads.map { tuple_data ->
+            def prefix = tuple_data[0]
+            def read1 = tuple_data[1]
+            def read2 = (tuple_data.size() == 3) ? tuple_data[2] : file('/dev/null')
+            tuple(prefix, read1, read2, file(params.metaphlan_db))
+        }
+
+        metaphlan_channel = RUN_METAPHLAN(metaphlan_input).metaphlan_profile
+            .map { path -> 
+                def prefix = path.getName().replaceFirst(/_metaphlan\.txt$/, '')
+                tuple(prefix, path)
+            }
+
+        humann_input = metaphlan_channel
+            .join(trimmed_reads, by: 0)
+            .map { joined ->
+            def prefix = joined[0]
+            def metaphlan_profile = joined[1]
+            def read1 = joined[2]
+            def read2 = (joined.size() == 4) ? joined[3] : file('/dev/null')
+            tuple(prefix, read1, read2, metaphlan_profile, file(params.database_location))
+            }
+
+        humann_result = RUN_HUMANN(humann_input)
+  
+
+    emit:
+        humann_genefamilies  = humann_result.genefamilies
+        humann_pathabundance = humann_result.pathabundance
+        humann_pathcoverage  = humann_result.pathcoverage
+        trimmed_reads        = trimmed_reads
+        metaphlan            = metaphlan_channel.map { it[1] }
+}
+
+
+workflow QIIME_METAPHLAN {
+    take:
         metaphlan
 
     main:
@@ -85,7 +164,6 @@ workflow QIIME {
 
         // Turn the Path-only channel into (prefix, file) tuples:
         def metaphlan_tuples = metaphlan.map { file ->
-        // remove the "_metaphlan.txt" suffix to get your prefix
             def prefix = file.getName().replaceFirst(/_metaphlan\.txt$/, '')
             tuple(prefix, file)
         }
@@ -101,17 +179,67 @@ workflow QIIME {
 
         ch_output_file_paths = ch_output_file_paths.mix(
             QIIME_DATAMERGE.out.filtered_counts_collapsed_tsv.map{ "${params.outdir}/qiime_mergeddata/" + it.getName() }
-            )
+        )
+        
         QIIME_DATAMERGE.out.filtered_counts_collapsed_qza
             .ifEmpty('There were no samples or taxa left after filtering! Try lower filtering criteria or examine your data quality.')
             .filter( String )
             .set{ ch_warning_message }
+
+        // CREATE taxonomy_table here
+        taxonomy_table = QIIME_DATAMERGE.out.species_relative_abundance
+            .map { file -> 
+                def prefix = file.getName().replaceFirst(/_species_relative_abundance\.tsv$/, '')
+                tuple(prefix, file)
+            }
 
     emit:
         qiime_profiles
         qiime_taxonomy
         ch_output_file_paths
         ch_warning_message
+        taxonomy_table
+}
+
+// In your main.nf, update the Q2_PREP workflow:
+
+workflow Q2_PREP {
+    take:
+        humann_genefamilies
+        humann_pathabundance
+        humann_pathcoverage
+        ch_output_file_paths
+        taxonomy_table
+
+    main:
+        // Collect all files
+        genefamilies_list  = humann_genefamilies.collect()
+        pathabundance_list = humann_pathabundance.collect()
+        pathcoverage_list  = humann_pathcoverage.collect()
+
+        // Create manifest and get stratified/unstratified tables
+        Q2_MANIFEST(genefamilies_list, pathabundance_list, pathcoverage_list)
+        
+        // Combine taxonomy_table with manifest outputs properly
+        dysbiosis_input = taxonomy_table
+            .combine(Q2_MANIFEST.out.stratified_table)
+            .combine(Q2_MANIFEST.out.unstratified_table)
+            .map { sample, species_file, stratified_table, unstratified_table ->
+                def meta = [id: sample]
+                tuple(meta, species_file, stratified_table, unstratified_table)
+            }
+        
+        // Set mode (can be 'full', 'fast', etc.)
+        mode = params.dysbiosis_mode ?: 'full'
+        
+        // Run Q2 Predict Dysbiosis, passing the model file as an extra input
+        model_file_ch = Channel.value(file(params.dysbiosis_model))
+        Q2_PREDICT_DYSBIOSIS(dysbiosis_input, mode, model_file_ch)
+
+    emit:
+        stratified_table   = Q2_MANIFEST.out.stratified_table
+        unstratified_table = Q2_MANIFEST.out.unstratified_table
+        dysbiosis_results  = Q2_PREDICT_DYSBIOSIS.out.results
 }
 
 workflow FINAL_REPORT {
@@ -163,12 +291,23 @@ workflow {
         // Run GMWI2 branch
         GMWI(PREPARATION_INPUT.out.prepared_input)
 
-        QIIME(
+    QIIME(
+        MAIN.out.gmwi2_scores,
+        MAIN.out.gmwi2_taxa,
+        MAIN.out.metaphlan
+    )
+        QIIME_METAPHLAN(
             GMWI.out.gmwi2_scores,
             GMWI.out.gmwi2_taxa,
             GMWI.out.metaphlan
         )
 
+    FINAL_REPORT(
+        MAIN.out.gmwi2_scores,
+        MAIN.out.gmwi2_taxa,
+        MAIN.out.metaphlan,
+    )
+}
         FINAL_REPORT(
             GMWI.out.gmwi2_scores,
             GMWI.out.gmwi2_taxa,
@@ -179,6 +318,14 @@ workflow {
     else if (params.tool == 'q2-predict') {
         // Run Q2-PREDICT branch
         Q2_PREDICT(PREPARATION_INPUT.out.prepared_input)
+        QIIME_METAPHLAN(Q2_PREDICT.out.metaphlan)
+        Q2_PREP(
+            Q2_PREDICT.out.humann_genefamilies,
+            Q2_PREDICT.out.humann_pathabundance,
+            Q2_PREDICT.out.humann_pathcoverage,
+            QIIME_METAPHLAN.out.ch_output_file_paths,
+            QIIME_METAPHLAN.out.taxonomy_table
+        )
     }
 
     else {
