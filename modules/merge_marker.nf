@@ -21,11 +21,14 @@ process MERGE_MARKER_MAP {
   head -n1 ${first} > all_marker_map.tsv
 
   # concatenate and sort+uniq *only* the data rows
+  # Extract sample ID from filename (everything before _metaphlan_marker_map.tsv)
   {
     for f in ${fileList}; do
-      tail -n +2 "\$f"
+      if [[ -f "\$f" ]]; then
+        sample_id=\$(basename "\$f" | sed 's/_metaphlan_marker_map\\.tsv\$//')
+        tail -n +2 "\$f" | awk -v sample="\$sample_id" 'BEGIN{OFS="\\t"} {if (NF > 0) {\$1=sample; print}}'
+      fi
     done
   } | sort | uniq >> all_marker_map.tsv
   """
-
 }
