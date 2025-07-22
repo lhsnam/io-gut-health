@@ -46,6 +46,8 @@ It integrates state-of-the-art tools (MetaPhlAn, HUMAnN, GMWI2,Q2-PREDICT-DYSBIO
     sample3,s3_run1_R1.fastq.gz,s3_run1_R2.fastq.gz,groupB,,
     ```
 
+    💡 **Tip**: Use the [design-csv-creator](https://github.com/lhsnam/design-csv-creator) tool to automatically generate your `design.csv` file from a directory of FASTQ files.
+
 2. **Launch the pipeline**:
 
    ```bash
@@ -56,7 +58,7 @@ It integrates state-of-the-art tools (MetaPhlAn, HUMAnN, GMWI2,Q2-PREDICT-DYSBIO
      -profile local
    ```
 
-   Replace `gmwi` with `q2-predict` in `--tool` to use the alternative scoring method.
+   Replace `gmwi2` with `q2-predict` in `--tool` to use the alternative scoring method.
 
 ---
 
