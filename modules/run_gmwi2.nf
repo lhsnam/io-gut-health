@@ -1,4 +1,5 @@
 process RUN_GMWI2_SINGLE {
+    label 'process_gmwi2'
     tag { prefix }
 
     container 'docker.io/namlhs/gmwi2-custom:7.25'
@@ -22,6 +23,7 @@ process RUN_GMWI2_SINGLE {
 }
 
 process RUN_GMWI2_PAIR {
+    label 'process_gmwi2'
     tag { prefix }
 
     container 'docker.io/namlhs/gmwi2-custom:7.25'
