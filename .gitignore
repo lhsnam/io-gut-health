@@ -18,3 +18,6 @@ conf/local.config
 
 # Ignore git-related files
 .gitignore
+
+# Ignore report html
+*.html
