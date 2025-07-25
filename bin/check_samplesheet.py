@@ -86,6 +86,34 @@ def check_samplesheet(file_in, file_out):
     assert design["read_1"].map(check_fastq_suffix).all()
     assert design["read_2"].map(check_fastq_suffix, na_action="ignore").all()
     
+    # For single-end data, remove _1 or _2 suffix from read_1 filenames
+    single_end_mask = design["read_2"].isna()
+    if single_end_mask.any():
+        for idx in design[single_end_mask].index:
+            filepath = design.at[idx, "read_1"]
+            # Split path and filename
+            path_parts = filepath.split('/')
+            filename = path_parts[-1]
+            
+            # Extract base name and extension
+            if filename.endswith('.fq.gz'):
+                base_name = filename[:-6]
+                extension = '.fq.gz'
+            elif filename.endswith('.fastq.gz'):
+                base_name = filename[:-9]
+                extension = '.fastq.gz'
+            else:
+                base_name = filename
+                extension = ''
+            
+            # Remove _1 or _2 suffix if present
+            if base_name.endswith('_1') or base_name.endswith('_2'):
+                base_name = base_name[:-2]  # Remove last 2 characters (_1 or _2)
+                new_filename = base_name + extension
+                path_parts[-1] = new_filename
+                new_filepath = '/'.join(path_parts)
+                design.at[idx, "read_1"] = new_filepath
+    
     # Make sure there is no duplication of FASTQ locations
     assert design["read_1"].duplicated().any() == False, "There are duplications within Read 1 paths!"
     assert design["read_2"].dropna().duplicated().any() == False, "There are duplications within Read 2 paths!"
